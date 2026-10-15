@@ -14,6 +14,15 @@ function requireDb(req, res, next) {
   if (!supabase) return res.status(503).json({ error: 'Supabase API is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend/.env.' });
   next();
 }
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "Smart Library API",
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'smart-library-api' }));
 
 // Read endpoints preserve existing records. Never create a library automatically.
