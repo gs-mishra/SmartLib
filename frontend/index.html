@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="QR-code based smart library management system with Firebase Firestore and LocalStorage capability.">
+  <title>Smart Library - QR-Based Portal</title>
+
+  <link rel="manifest" href="manifest.json">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+
+
+
+  <!-- FontAwesome Icons -->
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Core Design CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Supabase JS Client library SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- QRCode.js and html5-qrcode CDNs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+
+<body>
+
+  <!-- ========================================== -->
+  <!-- 1. HOME / ENTRY VIEW (LOGIN & REGISTRATION) -->
+  <!-- ========================================== -->
+  <div id="home-view" class="app-view active">
+    <div class="portal-container">
+      <div class="portal-header">
+        <div class="logo-glow">
+          <i class="fa-solid fa-qrcode"></i> Smart Library
+        </div>
+        <p class="portal-subtitle">Next-Gen QR-Based Library Management System</p>
+      </div>
+
+      <div class="portal-card glass-panel">
+        <div class="portal-tabs">
+          <div id="tab-login" class="portal-tab active" onclick="switchPortalTab('login')">Login</div>
+          <div id="tab-register" class="portal-tab" onclick="switchPortalTab('register')">Register Library</div>
+        </div>
+
+        <!-- Portal: Login Form -->
+        <form id="form-login" onsubmit="handleLoginSubmit(event)">
+          <div class="form-toggle-label">
+            <div id="toggle-role-admin" class="form-toggle-btn active" onclick="setLoginRole('admin')">Librarian / Admin
+            </div>
+            <div id="toggle-role-student" class="form-toggle-btn" onclick="setLoginRole('student')">Student / Member
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="login-library-select">Select Library</label>
+            <select id="login-library-select" class="form-control" required>
+              <option value="" disabled selected>Loading libraries...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="login-username" id="login-username-label">Username</label>
+            <input type="text" id="login-username" class="form-control" placeholder="Enter username" required
+              autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" class="form-control" placeholder="Enter password" required
+              autocomplete="current-password">
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Authenticate
+          </button>
+        </form>
+
+        <!-- Portal: Register Library Form -->
+        <form id="form-register" style="display: none;" onsubmit="handleRegisterLibrarySubmit(event)">
+          <div class="form-group">
+            <label for="register-lib-name">Library Name</label>
+            <input type="text" id="register-lib-name" class="form-control"
+              placeholder="e.g., Central University Library" required>
+          </div>
+          <div class="form-group">
+            <label for="register-lib-code">Library Code (Exactly 4 digits)</label>
+            <input type="text" id="register-lib-code" class="form-control" placeholder="e.g., 1234" maxlength="4"
+              pattern="^[0-9]{4}$" title="Must be exactly 4 digits (0-9)" required>
+          </div>
+
+          <div class="form-group">
+            <label for="register-admin-user">Admin Username</label>
+            <input type="text" id="register-admin-user" class="form-control" placeholder="Create username" required
+              autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="register-admin-password">Admin Password</label>
+            <input type="password" id="register-admin-password" class="form-control"
+              placeholder="Create strong password" required autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 10px;">
+            <i class="fa-solid fa-plus"></i> Initialize Library
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 2. ADMIN / LIBRARIAN DASHBOARD VIEW -->
+  <!-- ========================================== -->
+  <div id="admin-view" class="app-view">
+    <div class="dashboard-shell">
+      <!-- Admin Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">
+            <i class="fa-solid fa-laptop-code"></i> <span>SmartLib</span>
+          </div>
+        </div>
+        <ul class="sidebar-menu">
+          <li class="sidebar-link active" onclick="switchDashboardTab('admin-sub-overview', this)">
+            <i class="fa-solid fa-chart-pie"></i> <span>Overview</span>
+          </li>
+          <li class="sidebar-link" onclick="switchDashboardTab('admin-sub-books', this)">
+            <i class="fa-solid fa-book"></i> <span>Manage Books</span>
+          </li>
+          <li class="sidebar-link" onclick="switchDashboardTab('admin-sub-members', this)">
+            <i class="fa-solid fa-user-group"></i> <span>Manage Members</span>
+          </li>
+          <li class="sidebar-link" onclick="switchDashboardTab('admin-sub-desk', this)">
+            <i class="fa-solid fa-clipboard-list"></i> <span>Issue/Return Desk</span>
+          </li>
+          <li class="sidebar-link" onclick="switchDashboardTab('admin-sub-holidays', this)">
+            <i class="fa-solid fa-calendar-days"></i> <span>Holiday Management</span>
+          </li>
+          <li class="sidebar-link" onclick="switchDashboardTab('admin-sub-shelf-finder', this)">
+            <i class="fa-solid fa-compass"></i> <span>Book's Shelf Finder</span>
+          </li>
+          <li class="sidebar-link" onclick="switchDashboardTab('admin-sub-settings', this)">
+            <i class="fa-solid fa-gears"></i> <span>Settings</span>
+          </li>
+        </ul>
+        <div class="sidebar-profile">
+          <div class="profile-avatar">A</div>
+          <div class="profile-info">
+            <div class="profile-name" id="admin-profile-name">Admin Librarian</div>
+            <div class="profile-role" id="admin-profile-lib">Library Name</div>
+          </div>
+          <i class="fa-solid fa-power-off btn-logout" title="Log Out" onclick="handleLogout()"></i>
+        </div>
+      </aside>
+
+      <!-- Admin Main Panel -->
+      <main class="dash-content-container">
+        <header class="dash-header">
+          <div class="dash-header-title" style="display: flex; align-items: center; gap: 12px;">
+            <button class="btn-menu-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+            <h2 id="admin-section-title">Librarian Overview</h2>
+          </div>
+          <div class="dash-header-actions">
+            <span class="active-library-tag" id="admin-active-lib-badge" style="display: none;">Library ID</span>
+          </div>
+        </header>
+
+        <div class="dash-view-area">
+
+          <!-- Subview 1: Overview Stats -->
+          <div id="admin-sub-overview" class="dash-subview active">
+            <div class="stats-grid">
+              <div class="stat-card glass-panel">
+                <div class="stat-details">
+                  <h3 id="stat-total-books">0</h3>
+                  <p>Total Books</p>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-book-open"></i></div>
+              </div>
+              <div class="stat-card glass-panel success">
+                <div class="stat-details">
+                  <h3 id="stat-total-members">0</h3>
+                  <p>Registered Students</p>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+              </div>
+              <div class="stat-card glass-panel warning">
+                <div class="stat-details">
+                  <h3 id="stat-issued-books">0</h3>
+                  <p>Books Issued</p>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-hand-holding-hand"></i></div>
+              </div>
+              <div class="stat-card glass-panel danger">
+                <div class="stat-details">
+                  <h3 id="stat-active-fines">₹0.00</h3>
+                  <p>Total Fines</p>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-circle-dollar-to-slot"></i></div>
+              </div>
+            </div>
+
+            <!-- Recent activity section -->
+            <div class="section-card glass-panel">
+              <div class="section-header">
+                <div class="section-title">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <h3>Recent Library Activities</h3>
+                </div>
+                <button id="btn-toggle-activities" class="btn btn-secondary" onclick="toggleActivitiesLimit()">
+                  <i class="fa-solid fa-list"></i> View All
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Activity Date</th>
+                      <th>Book / Title</th>
+                      <th>Student Name</th>
+                      <th>Type</th>
+                      <th>Due Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-recent-activities-body">
+                    <tr>
+                      <td colspan="6" style="text-align: center; color: var(--text-muted);">No activity recorded yet.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subview 2: Manage Books -->
+          <div id="admin-sub-books" class="dash-subview">
+            <div class="section-card glass-panel">
+              <div class="section-header" style="gap: 12px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; flex-grow: 1; align-items: center;">
+                  <div class="search-box" style="max-width: 260px; flex-grow: 1;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="book-search-input" class="form-control" placeholder="Search Title or ISBN..."
+                      oninput="filterBooksTable()">
+                  </div>
+                  <select id="book-filter-author" class="form-control" style="max-width: 180px; height: 45px;"
+                    onchange="filterBooksTable()">
+                    <option value="">All Authors</option>
+                  </select>
+                  <select id="book-filter-genre" class="form-control" style="max-width: 180px; height: 45px;"
+                    onchange="filterBooksTable()">
+                    <option value="">All Categories</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary" onclick="openAddBookModal()">
+                  <i class="fa-solid fa-plus"></i> Add New Book
+                </button>
+              </div>
+
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Book ID / QR</th>
+                      <th>Title</th>
+                      <th>Author</th>
+                      <th>Genre & Location</th>
+                      <th>ISBN</th>
+                      <th>Copies</th>
+                      <th>Availability</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-books-body">
+                    <!-- Books loaded via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subview 3: Manage Members -->
+          <div id="admin-sub-members" class="dash-subview">
+            <div class="section-card glass-panel">
+              <div class="section-header">
+                <div class="search-box">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input type="text" id="member-search-input" class="form-control"
+                    placeholder="Search by student ID or name..." oninput="filterMembersTable()">
+                </div>
+                <button class="btn btn-success" onclick="openAddMemberModal()">
+                  <i class="fa-solid fa-user-plus"></i> Register Student
+                </button>
+              </div>
+
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Member ID / QR</th>
+                      <th>Name</th>
+                      <th>Username</th>
+                      <th>Contact (Email/Mobile)</th>
+                      <th>Address</th>
+                      <th>Issued Count</th>
+                      <th>Fines Due</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-members-body">
+                    <!-- Members loaded via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subview 4: Issue / Return Desk -->
+          <div id="admin-sub-desk" class="dash-subview">
+            <div class="checkout-panel-grid">
+
+              <!-- Sequential Workspace Panel -->
+              <div class="section-card glass-panel" style="margin-bottom: 0;">
+                <div class="section-header">
+                  <div class="section-title">
+                    <i class="fa-solid fa-shuffle"></i>
+                    <h3>Sequential Desk Operations</h3>
+                  </div>
+                </div>
+
+                <!-- Mode Toggles -->
+                <div class="form-toggle-label" style="margin-bottom: 25px;">
+                  <div id="desk-role-issue" class="form-toggle-btn active" onclick="setDeskMode('issue')">
+                    <i class="fa-solid fa-book-medical"></i> Issue Book Mode
+                  </div>
+                  <div id="desk-role-return" class="form-toggle-btn" onclick="setDeskMode('return')">
+                    <i class="fa-solid fa-book-bookmark"></i> Return Book Mode
+                  </div>
+                </div>
+
+                <!-- Workflow Step 1: Scan Member -->
+                <div id="desk-step-member-container" class="glass-panel"
+                  style="padding: 20px; margin-bottom: 20px; border-left: 4px solid var(--color-primary);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4 style="font-size: 15px; text-transform: uppercase; color: var(--color-primary);">Step 1: Scan
+                      Student QR</h4>
+                    <span id="desk-step-member-badge" class="badge badge-danger">Awaiting Scan</span>
+                  </div>
+                  <div class="form-group" style="position: relative; margin-bottom: 0;">
+                    <div style="display: flex; gap: 10px;">
+                      <input type="text" id="desk-member-input" class="form-control"
+                        placeholder="Enter Member ID/Username or Scan QR" required
+                        onkeyup="showDeskMemberSuggestions(this.value)">
+                      <button type="button" class="btn btn-primary" onclick="openScannerFor('member')">
+                        <i class="fa-solid fa-camera"></i> Scan QR
+                      </button>
+                    </div>
+                    <div id="desk-member-suggestions" class="suggestions-dropdown"></div>
+                  </div>
+                </div>
+
+                <!-- Workflow Step 2: Scan Book Barcode -->
+                <div id="desk-step-book-container" class="glass-panel"
+                  style="padding: 20px; margin-bottom: 20px; border-left: 4px solid var(--text-muted); opacity: 0.6; pointer-events: none;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4 style="font-size: 15px; text-transform: uppercase; color: var(--text-muted);">Step 2: Scan Book
+                      Barcode</h4>
+                    <span id="desk-step-book-badge" class="badge badge-danger">Locked</span>
+                  </div>
+                  <div class="form-group" style="position: relative; margin-bottom: 0;">
+                    <div style="display: flex; gap: 10px;">
+                      <input type="text" id="desk-book-input" class="form-control"
+                        placeholder="Enter Book Barcode/ID or Scan" required
+                        onkeyup="showDeskBookSuggestions(this.value)">
+                      <button type="button" class="btn btn-secondary" onclick="openScannerFor('book')">
+                        <i class="fa-solid fa-camera"></i> Scan Barcode
+                      </button>
+                    </div>
+                    <div id="desk-book-suggestions" class="suggestions-dropdown"></div>
+                  </div>
+                </div>
+
+                <!-- Loan details and Action -->
+                <div id="desk-action-container" style="display: none; animation: fadeIn 0.3s ease;">
+                  <div class="form-group" id="desk-loan-period-group">
+                    <label for="desk-days-input">Loan Period (Days)</label>
+                    <select id="desk-days-input" class="form-control">
+                      <option value="7">7 Days (Short Loan)</option>
+                      <option value="14" selected>14 Days (Standard Loan)</option>
+                      <option value="30">30 Days (Extended Loan)</option>
+                    </select>
+                  </div>
+                  <button type="button" id="desk-submit-btn" class="btn btn-success"
+                    style="width: 100%; height: 48px; font-size: 15px;" onclick="executeSequentialDeskOperation()">
+                    <i class="fa-solid fa-circle-check"></i> Complete Transaction
+                  </button>
+                  <button type="button" class="btn btn-secondary" style="width: 100%; margin-top: 10px;"
+                    onclick="resetDeskWorkflow()">
+                    <i class="fa-solid fa-rotate-left"></i> Reset Scan Process
+                  </button>
+                </div>
+
+                <!-- Simulated Scanning Helper -->
+                <div class="mock-scanner-helper" style="margin-top: 25px;">
+                  <p><i class="fa-solid fa-lightbulb"></i> <strong>Offline Simulator:</strong> Click a quick-code tag to
+                    simulate scanning a physical code.</p>
+                  <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                    <div>
+                      <span style="font-size:12px; color: var(--text-secondary);">Simulate Student QR:</span>
+                      <div id="mock-members-list" class="mock-qr-list"></div>
+                    </div>
+                    <div>
+                      <span style="font-size:12px; color: var(--text-secondary);">Simulate Book Barcode:</span>
+                      <div id="mock-books-list" class="mock-qr-list"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Interactive Display & Active Checkouts Panel -->
+              <div style="display: flex; flex-direction: column; gap: 20px;">
+
+                <!-- Scanned Entities Preview Cards -->
+                <div class="section-card glass-panel" style="margin-bottom: 0; padding: 20px;">
+                  <div class="section-title" style="margin-bottom: 15px;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <h3>Scanned Profiles Review</h3>
+                  </div>
+
+                  <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <!-- Student Card Preview -->
+                    <div id="preview-student-card" class="glass-panel"
+                      style="padding: 15px; display: none; background: rgba(var(--color-primary-rgb), 0.03); border: 1px dashed var(--color-primary);">
+                      <div style="display: flex; gap: 15px; align-items: center;">
+                        <div class="profile-avatar"
+                          style="background: var(--color-primary); width: 45px; height: 45px; flex-shrink: 0;"><i
+                            class="fa-solid fa-user-graduate"></i></div>
+                        <div style="overflow: hidden; flex-grow: 1;">
+                          <h4 id="preview-student-name" style="font-size: 15px; margin-bottom: 2px;">Name</h4>
+                          <div id="preview-student-id"
+                            style="font-size: 12px; color: var(--text-secondary); font-family: monospace;">ID: </div>
+                          <div style="display: flex; gap: 15px; margin-top: 6px; font-size: 11px;">
+                            <span>Active Issues: <strong id="preview-student-issues"
+                                style="color: var(--color-info);">0</strong></span>
+                            <span>Unpaid Fines: <strong id="preview-student-fines"
+                                style="color: var(--color-accent);">₹0.00</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Book Card Preview -->
+                    <div id="preview-book-card" class="glass-panel"
+                      style="padding: 15px; display: none; background: rgba(5, 150, 105, 0.03); border: 1px dashed var(--color-secondary);">
+                      <div style="display: flex; gap: 15px; align-items: center;">
+                        <div id="preview-book-cover-container"
+                          style="width: 45px; height: 60px; background: #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+                          <i class="fa-solid fa-book" style="color: var(--text-muted);"></i>
+                        </div>
+                        <div style="overflow: hidden; flex-grow: 1;">
+                          <h4 id="preview-book-title" style="font-size: 15px; margin-bottom: 2px;">Title</h4>
+                          <div id="preview-book-author" style="font-size: 12px; color: var(--text-secondary);">by Author
+                          </div>
+                          <div style="display: flex; gap: 15px; margin-top: 6px; font-size: 11px;">
+                            <span>Barcode: <strong id="preview-book-barcode"
+                                style="font-family: monospace;">Barcode</strong></span>
+                            <span>Available: <strong id="preview-book-available"
+                                style="color: var(--color-secondary);">0</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Placeholder when nothing is scanned -->
+                    <div id="preview-desk-placeholder"
+                      style="text-align: center; color: var(--text-muted); padding: 40px 0;">
+                      <i class="fa-solid fa-qrcode" style="font-size: 32px; margin-bottom: 12px; opacity: 0.5;"></i>
+                      <p style="font-size: 13px;">Scan member QR to initiate transaction.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Active Checkouts Summary Panel -->
+                <div class="section-card glass-panel" style="margin-bottom: 0; padding: 20px;">
+                  <div class="section-header" style="margin-bottom: 15px;">
+                    <div class="section-title">
+                      <i class="fa-solid fa-receipt"></i>
+                      <h3>Active Checkouts Desk</h3>
+                    </div>
+                  </div>
+                  <div id="desk-checkout-list"
+                    style="display: flex; flex-direction: column; gap: 12px; max-height: 280px; overflow-y: auto;">
+                    <!-- Loaded via JS -->
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Subview 5: Settings & Config Status -->
+          <div id="admin-sub-settings" class="dash-subview">
+            <div class="section-card glass-panel">
+              <div class="section-header">
+                <div class="section-title">
+                  <i class="fa-solid fa-circle-info"></i>
+                  <h3>System Status & Configurations</h3>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="glass-panel"
+                  style="padding: 20px; border-left: 4px solid var(--color-primary); background: rgba(var(--color-primary-rgb), 0.04);">
+                  <h4 style="margin-bottom: 8px; font-size: 16px;">Active Database Mode</h4>
+                  <div id="database-mode-indicator"
+                    style="display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight:600;">
+                    <!-- Filled by JavaScript -->
+                  </div>
+                  <p id="database-mode-desc"
+                    style="font-size: 13px; color: var(--text-secondary); margin-top: 8px; line-height: 1.4;">
+                    Checking database configuration status...
+                  </p>
+                </div>
+
+                <div class="glass-panel"
+                  style="padding: 20px; border-left: 4px solid var(--color-info); background: rgba(2, 132, 199, 0.04);">
+                  <h4 style="margin-bottom: 8px; font-size: 16px;">Library ID Reference</h4>
+                  <div style="font-family: monospace; font-size: 14px; font-weight: 600; color: var(--text-primary); background: var(--bg-secondary); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); word-break: break-all; margin-top: 8px;" id="admin-settings-lib-id">
+                    <!-- Filled by JavaScript -->
+                  </div>
+                  <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">
+                    This unique identifier represents this library branch profile. Share it with your developer or reference it in Supabase connection sheets.
+                  </p>
+                </div>
+
+                <div class="glass-panel"
+                  style="padding: 20px; border-left: 4px solid var(--color-warning); background: rgba(234, 88, 12, 0.04);">
+                  <h4 style="margin-bottom: 8px; font-size: 16px;">Configured Fine Policies</h4>
+                  <div style="display: flex; gap: 30px; margin-top: 15px; flex-wrap: wrap;">
+                    <div class="form-group" style="margin-bottom: 0; min-width: 150px;">
+                      <label for="settings-fine-rate">Daily Fine Rate (₹)</label>
+                      <input type="number" id="settings-fine-rate" class="form-control" value="1.00" step="0.25"
+                        onchange="updateFineRate(this.value)">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0; min-width: 150px;">
+                      <label for="settings-max-books">Max Books Checked Out</label>
+                      <input type="number" id="settings-max-books" class="form-control" value="5" min="1"
+                        onchange="updateMaxBooksLimit(this.value)">
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 10px; text-align: center; color: var(--text-muted); font-size: 12px;">
+                  Smart Library Platform &copy; 2026. Made By GS & AG (NYSOFT)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Holiday Management -->
+          <div id="admin-sub-holidays" class="dash-subview">
+            <div class="section-card glass-panel holiday-manager">
+              <div class="section-header">
+                <div class="section-title"><i class="fa-solid fa-calendar-days"></i><h3>Holiday Management</h3></div>
+              </div>
+              <p class="holiday-help">Add library holidays here. Sundays and saved holidays are non-working days. Saturdays remain working days. New book due dates that fall on a Sunday or saved holiday automatically move to the next working day.</p>
+              <form class="holiday-form" onsubmit="handleSaveHoliday(event)">
+                <div class="form-group"><label for="holiday-date">Holiday date</label><input class="form-control" type="date" id="holiday-date" required></div>
+                <div class="form-group"><label for="holiday-name">Holiday name</label><input class="form-control" type="text" id="holiday-name" placeholder="e.g. Diwali" maxlength="100" required></div>
+                <button class="btn btn-primary" type="submit"><i class="fa-solid fa-plus"></i> Add / Update Holiday</button>
+              </form>
+              <div class="holiday-calendar-header"><button class="btn btn-secondary btn-sm" type="button" onclick="changeHolidayMonth(-1)" aria-label="Previous month"><i class="fa-solid fa-chevron-left"></i></button><h4 id="holiday-calendar-title">Calendar</h4><button class="btn btn-secondary btn-sm" type="button" onclick="changeHolidayMonth(1)" aria-label="Next month"><i class="fa-solid fa-chevron-right"></i></button></div>
+              <div class="holiday-calendar-legend" aria-label="Calendar legend"><span><i class="holiday-legend-dot holiday-legend-holiday"></i> Saved holiday</span><span><i class="holiday-legend-dot holiday-legend-sunday"></i> Sunday</span></div>
+              <div id="holiday-calendar" class="holiday-calendar" aria-label="Holiday calendar"></div>
+              <h4 class="holiday-list-title">Saved holidays</h4>
+              <div id="holiday-list" class="holiday-list"><p class="text-muted">Loading holidays...</p></div>
+            </div>
+          </div>
+
+          <!-- Subview 6: Shelf Finder -->
+          <div id="admin-sub-shelf-finder" class="dash-subview">
+            <div class="checkout-panel-grid"
+              style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 30px; align-items: start;">
+
+              <!-- Left card: Input / Scan barcode -->
+              <div class="section-card glass-panel" style="margin-bottom: 0;">
+                <div class="section-header">
+                  <div class="section-title">
+                    <i class="fa-solid fa-barcode"></i>
+                    <h3>Scan or Enter Book Barcode</h3>
+                  </div>
+                </div>
+
+                <div class="glass-panel"
+                  style="padding: 20px; margin-bottom: 20px; border-left: 4px solid var(--color-secondary);">
+                  <h4
+                    style="font-size: 15px; text-transform: uppercase; color: var(--color-secondary); margin-bottom: 15px;">
+                    Locate Book Shelf</h4>
+                  <form id="form-shelf-finder" onsubmit="handleShelfFinderSearch(event)">
+                    <div class="form-group" style="position: relative; margin-bottom: 15px;">
+                      <label for="shelf-barcode-input">Book Barcode / ISBN / ID</label>
+                      <div style="display: flex; gap: 10px;">
+                        <input type="text" id="shelf-barcode-input" class="form-control"
+                          placeholder="Scan or enter book barcode" required>
+                        <button type="button" class="btn btn-secondary" onclick="openScannerFor('shelf-finder')">
+                          <i class="fa-solid fa-camera"></i> Scan
+                        </button>
+                      </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; height: 45px;">
+                      <i class="fa-solid fa-magnifying-glass"></i> Find Location
+                    </button>
+                  </form>
+                </div>
+
+                <!-- Helper list of books for easy demo in simulator -->
+                <div class="mock-scanner-helper">
+                  <p><i class="fa-solid fa-lightbulb"></i> <strong>Quick Simulator:</strong> Click a cataloged book
+                    title to simulate scanning/entering its barcode.</p>
+                  <div id="shelf-finder-mock-list" class="mock-qr-list" style="margin-top: 10px;"></div>
+                </div>
+              </div>
+
+              <!-- Right card: Display location and book details -->
+              <div class="section-card glass-panel" style="margin-bottom: 0; padding: 20px;">
+                <div class="section-title" style="margin-bottom: 15px;">
+                  <i class="fa-solid fa-compass"></i>
+                  <h3>Shelf Location Results</h3>
+                </div>
+
+                <div id="shelf-finder-results">
+                  <!-- Placeholder before search -->
+                  <div id="shelf-finder-placeholder"
+                    style="text-align: center; color: var(--text-muted); padding: 50px 0;">
+                    <i class="fa-solid fa-magnifying-glass"
+                      style="font-size: 36px; margin-bottom: 12px; opacity: 0.5;"></i>
+                    <p style="font-size: 14px;">Scan or type a book's barcode to find its shelf location.</p>
+                  </div>
+
+                  <!-- Success card (hidden initially) -->
+                  <div id="shelf-finder-success-card" style="display: none; animation: fadeIn 0.3s ease;">
+                    <div class="glass-panel"
+                      style="padding: 20px; border-left: 4px solid var(--color-secondary); background: rgba(5, 150, 105, 0.03); margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+                      <div
+                        style="background: var(--color-secondary); color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                        <i class="fa-solid fa-location-dot"></i>
+                      </div>
+                      <div>
+                        <span
+                          style="font-size: 12px; text-transform: uppercase; color: var(--color-secondary); font-weight: 600; letter-spacing: 0.05em;">SHELF
+                          LOCATION DETECTED</span>
+                        <h2 id="shelf-result-location"
+                          style="font-size: 24px; font-weight: 800; margin-top: 2px; color: var(--text-primary);">Shelf
+                          A-4</h2>
+                      </div>
+                    </div>
+
+                    <!-- Book details sub-panel -->
+                    <div class="glass-panel" style="padding: 20px;">
+                      <div style="display: flex; gap: 20px; align-items: flex-start;">
+                        <div id="shelf-result-cover-container"
+                          style="width: 70px; height: 95px; background: #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border-color); flex-shrink: 0;">
+                          <i class="fa-solid fa-book" style="font-size: 24px; color: var(--text-muted);"></i>
+                        </div>
+                        <div style="flex-grow: 1; overflow: hidden;">
+                          <h4 id="shelf-result-title"
+                            style="font-size: 18px; font-weight: 700; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            Book Title</h4>
+                          <p id="shelf-result-author"
+                            style="font-size: 14px; color: var(--text-secondary); margin-bottom: 10px;">by Author</p>
+
+                          <div
+                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                            <div>Barcode: <strong id="shelf-result-barcode" style="font-family: monospace;">-</strong>
+                            </div>
+                            <div>ISBN: <strong id="shelf-result-isbn" style="font-family: monospace;">-</strong></div>
+                            <div>Total Copies: <strong id="shelf-result-total-copies">-</strong></div>
+                            <div>Available Copies: <strong id="shelf-result-available-copies"
+                                style="color: var(--color-secondary);">-</strong></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Error card (hidden initially) -->
+                  <div id="shelf-finder-error-card" style="display: none; animation: fadeIn 0.3s ease;">
+                    <div class="glass-panel"
+                      style="padding: 30px; text-align: center; border-left: 4px solid var(--color-accent); background: rgba(220, 38, 38, 0.03);">
+                      <i class="fa-solid fa-circle-exclamation"
+                        style="font-size: 40px; color: var(--color-accent); margin-bottom: 15px;"></i>
+                      <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Book Not Found</h4>
+                      <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 15px;">
+                        No book with the specified barcode, ISBN, or ID is registered in this library catalog.</p>
+                      <button class="btn btn-secondary btn-sm" onclick="openAddBookModalFromShelfFinder()">
+                        <i class="fa-solid fa-plus"></i> Catalog This Book
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      <!-- Admin Bottom Navigation Bar -->
+      <nav class="bottom-nav">
+        <div class="bottom-nav-item active" onclick="switchDashboardTab('admin-sub-overview', this)">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Overview</span>
+        </div>
+        <div class="bottom-nav-item" onclick="switchDashboardTab('admin-sub-books', this)">
+          <i class="fa-solid fa-book"></i>
+          <span>Books</span>
+        </div>
+        <div class="bottom-nav-item" onclick="switchDashboardTab('admin-sub-members', this)">
+          <i class="fa-solid fa-user-group"></i>
+          <span>Members</span>
+        </div>
+        <div class="bottom-nav-item" onclick="switchDashboardTab('admin-sub-desk', this)">
+          <i class="fa-solid fa-clipboard-list"></i>
+          <span>Desk</span>
+        </div>
+        <div class="bottom-nav-item" onclick="toggleSidebar()">
+          <i class="fa-solid fa-bars"></i>
+          <span>More</span>
+        </div>
+      </nav>
+      <!-- Mobile Sidebar Backdrop -->
+      <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 3. STUDENT / MEMBER DASHBOARD VIEW -->
+  <!-- ========================================== -->
+  <div id="student-view" class="app-view">
+    <div class="dashboard-shell">
+      <!-- Student Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">
+            <i class="fa-solid fa-graduation-cap"></i> <span>StudentPortal</span>
+          </div>
+        </div>
+        <ul class="sidebar-menu">
+          <li class="sidebar-link active" onclick="switchStudentTab('student-sub-profile', this)">
+            <i class="fa-solid fa-id-card"></i> <span>My Profile</span>
+          </li>
+          <li class="sidebar-link" onclick="switchStudentTab('student-sub-browse', this)">
+            <i class="fa-solid fa-magnifying-glass"></i> <span>Browse Books</span>
+          </li>
+          <li class="sidebar-link" onclick="switchStudentTab('student-sub-issues', this)">
+            <i class="fa-solid fa-book-reader"></i> <span>My Checkouts</span>
+          </li>
+        </ul>
+        <div class="sidebar-profile">
+          <div class="profile-avatar"
+            style="background: linear-gradient(135deg, var(--color-secondary), var(--color-info))">S</div>
+          <div class="profile-info">
+            <div class="profile-name" id="student-profile-name">Student Member</div>
+            <div class="profile-role" id="student-profile-lib">Library Name</div>
+          </div>
+          <i class="fa-solid fa-power-off btn-logout" title="Log Out" onclick="handleLogout()"></i>
+        </div>
+      </aside>
+
+      <!-- Student Main Panel -->
+      <main class="dash-content-container">
+        <header class="dash-header">
+          <div class="dash-header-title" style="display: flex; align-items: center; gap: 12px;">
+            <button class="btn-menu-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+            <h2 id="student-section-title">Student Dashboard</h2>
+          </div>
+          <div class="dash-header-actions">
+            <span class="active-library-tag" id="student-active-lib-badge">Library Name</span>
+          </div>
+        </header>
+
+        <div class="dash-view-area">
+
+          <!-- Student Subview 1: Profile & QR -->
+          <div id="student-sub-profile" class="dash-subview active">
+            <div class="student-profile-hero glass-panel">
+              <div class="profile-avatar-large">
+                <i class="fa-solid fa-user-tie"></i>
+              </div>
+              <div class="student-meta-details">
+                <h3 id="student-display-name">Student Name</h3>
+                <p id="student-display-username"><i class="fa-solid fa-user" style="margin-right: 6px;"></i> username
+                </p>
+                <p id="student-display-email" style="margin-top: 4px;"><i class="fa-solid fa-envelope"
+                    style="margin-right: 6px;"></i> student@email.com</p>
+                <p id="student-display-mobile" style="margin-top: 4px;"><i class="fa-solid fa-mobile-screen-button"
+                    style="margin-right: 6px;"></i> Mobile: <span>-</span></p>
+                <p id="student-display-address" style="margin-top: 4px;"><i class="fa-solid fa-location-dot"
+                    style="margin-right: 6px;"></i> Address: <span>-</span></p>
+                <p id="student-display-id" style="margin-top: 4px; font-size:12px; font-family:monospace;"><i
+                    class="fa-solid fa-fingerprint" style="margin-right: 6px;"></i> Member ID: mem_xxxx</p>
+              </div>
+
+              <!-- Student QR -->
+              <div class="student-qr-container"
+                style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                <div id="student-profile-qr-holder"></div>
+                <div class="student-qr-label">Member Scan ID</div>
+                <button type="button" class="btn btn-primary"
+                  style="padding: 6px 12px; font-size:11px; width:100%; border-radius:6px; margin-top:6px;"
+                  onclick="viewMyIDCard()">
+                  <i class="fa-solid fa-id-card"></i> View ID Card
+                </button>
+              </div>
+            </div>
+
+            <!-- Dashboard summary cards for Student -->
+            <div class="stats-grid">
+              <div class="stat-card glass-panel">
+                <div class="stat-details">
+                  <h3 id="student-stat-books-count">0</h3>
+                  <p>Books Checked Out</p>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-book-open"></i></div>
+              </div>
+              <div class="stat-card glass-panel success">
+                <div class="stat-details">
+                  <h3 id="student-stat-due-date">None</h3>
+                  <p>Next Due Date</p>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-calendar-day"></i></div>
+              </div>
+              <div class="stat-card glass-panel danger">
+                <div class="stat-details">
+                  <h3 id="student-stat-fines">₹0.00</h3>
+                  <p>Unpaid Fines</p>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-circle-dollar-to-slot"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Student Subview 2: Browse Catalog -->
+          <div id="student-sub-browse" class="dash-subview">
+            <div class="section-card glass-panel">
+              <div class="section-header" style="gap: 12px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; flex-grow: 1; align-items: center; width: 100%;">
+                  <div class="search-box" style="max-width: 280px; flex-grow: 1;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="student-book-search" class="form-control"
+                      placeholder="Search Title or ISBN..." oninput="filterStudentBooks()">
+                  </div>
+                  <select id="student-filter-author" class="form-control" style="max-width: 200px; height: 45px;"
+                    onchange="filterStudentBooks()">
+                    <option value="">All Authors</option>
+                  </select>
+                  <select id="student-filter-genre" class="form-control" style="max-width: 200px; height: 45px;"
+                    onchange="filterStudentBooks()">
+                    <option value="">All Categories</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Books Card Catalog -->
+              <div id="student-books-catalog" class="books-grid">
+                <!-- Book Cards rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Student Subview 3: My Issued Books -->
+          <div id="student-sub-issues" class="dash-subview">
+            <div class="section-card glass-panel">
+              <div class="section-header">
+                <div class="section-title">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <h3>My Borrowing Records</h3>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Book Title</th>
+                      <th>Borrow Date</th>
+                      <th>Due Date</th>
+                      <th>Return Date</th>
+                      <th>Current Fine</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="student-table-issues-body">
+                    <!-- Loaded via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      <!-- Student Bottom Navigation Bar -->
+      <nav class="bottom-nav">
+        <div class="bottom-nav-item active" onclick="switchStudentTab('student-sub-profile', this)">
+          <i class="fa-solid fa-id-card"></i>
+          <span>Profile</span>
+        </div>
+        <div class="bottom-nav-item" onclick="switchStudentTab('student-sub-browse', this)">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Browse</span>
+        </div>
+        <div class="bottom-nav-item" onclick="switchStudentTab('student-sub-issues', this)">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span>Checkouts</span>
+        </div>
+        <div class="bottom-nav-item" onclick="toggleSidebar()">
+          <i class="fa-solid fa-bars"></i>
+          <span>More</span>
+        </div>
+      </nav>
+      <!-- Mobile Sidebar Backdrop -->
+      <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 4. MODALS & POP-UPS (SYSTEM ACTIONS) -->
+  <!-- ========================================== -->
+
+  <!-- Modal 1: Add / Edit Book Form -->
+  <div id="modal-book" class="modal-overlay" onclick="closeModal('modal-book')">
+    <div class="modal-content glass-panel" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal('modal-book')"><i class="fa-solid fa-xmark"></i></button>
+      <div class="modal-header">
+        <h3 id="modal-book-title">Add New Book Record</h3>
+      </div>
+      <form id="form-book-submit" onsubmit="handleBookFormSubmit(event)">
+        <input type="hidden" id="modal-book-id">
+        <div class="form-group">
+          <label for="book-barcode">Barcode (Scan or Enter Code)</label>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="book-barcode" class="form-control"
+              placeholder="Scan barcode or enter unique identifier" required>
+            <button type="button" class="btn btn-secondary" onclick="openScannerFor('add-book-barcode')">
+              <i class="fa-solid fa-camera"></i> Scan Barcode
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="book-title">Book Title</label>
+          <input type="text" id="book-title" class="form-control" placeholder="e.g., The Great Gatsby" required>
+        </div>
+        <div class="form-group">
+          <label for="book-author">Author Name</label>
+          <input type="text" id="book-author" class="form-control" placeholder="e.g., F. Scott Fitzgerald" required>
+        </div>
+        <div class="form-group">
+          <label for="book-isbn">ISBN Code</label>
+          <input type="text" id="book-isbn" class="form-control" placeholder="e.g., 978-3-16-148410-0" required>
+        </div>
+        <div class="form-group">
+          <label for="book-cover">Book Cover Image</label>
+          <input type="file" id="book-cover" class="form-control" accept="image/*">
+        </div>
+        <div style="display: flex; gap: 15px;">
+          <div class="form-group" style="flex: 1;">
+            <label for="book-copy-count">Total Copies</label>
+            <input type="number" id="book-copy-count" class="form-control" value="1" min="1" required>
+          </div>
+          <div class="form-group" style="flex: 2;">
+            <label for="book-shelf-location">Shelf / Rack Location</label>
+            <input type="text" id="book-shelf-location" class="form-control" placeholder="e.g., Shelf A-4" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-book')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-book">Save Record</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Add / Edit Member Form -->
+  <div id="modal-member" class="modal-overlay" onclick="closeModal('modal-member')">
+    <div class="modal-content glass-panel" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal('modal-member')"><i class="fa-solid fa-xmark"></i></button>
+      <div class="modal-header">
+        <h3 id="modal-member-title">Add Student Record</h3>
+      </div>
+      <form id="form-member-submit" onsubmit="handleMemberFormSubmit(event)">
+        <input type="hidden" id="modal-member-id">
+        <div class="form-group">
+          <label for="member-name">Student Full Name</label>
+          <input type="text" id="member-name" class="form-control" placeholder="e.g., Enter Your Name" required>
+        </div>
+        <div class="form-group">
+          <label for="member-username">Student Login Username</label>
+          <input type="text" id="member-username" class="form-control" placeholder="e.g., Enter Your Username" required
+            autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="member-email">Email Address</label>
+          <input type="email" id="member-email" class="form-control" placeholder="e.g., example@gmail.com" required
+            autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="member-mobile">Mobile Number (10 Digits)</label>
+          <input type="tel" id="member-mobile" class="form-control" placeholder="e.g., 9876543210" maxlength="10"
+            pattern="^[0-9]{10}$" title="Must be exactly 10 digits (0-9)" required>
+        </div>
+        <div class="form-group">
+          <label for="member-address">Home Address</label>
+          <textarea id="member-address" class="form-control" placeholder="e.g., 123 Street, City" rows="2"
+            required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="member-password">Account Password</label>
+          <input type="password" id="member-password" class="form-control" placeholder="Create student password"
+            required autocomplete="new-password">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-member')">Cancel</button>
+          <button type="submit" class="btn btn-success" id="btn-save-member">Add Member</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: View QR Code Card -->
+  <div id="modal-qr" class="modal-overlay" onclick="closeModal('modal-qr')">
+    <div class="modal-content glass-panel" style="max-width: 400px;" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal('modal-qr')"><i class="fa-solid fa-xmark"></i></button>
+      <div class="modal-header" style="text-align: center;">
+        <h3 id="modal-qr-header-title">Smart Code Generated</h3>
+      </div>
+      <div class="qr-modal-body">
+        <div class="qr-canvas-container">
+          <div id="modal-qr-canvas"></div>
+        </div>
+        <p class="qr-info-text" id="modal-qr-description">Scan this code with the scanner to issue/verify.</p>
+        <button class="btn btn-primary" onclick="downloadModalQRCode()" style="width: 100%;">
+          <i class="fa-solid fa-download"></i> Download QR Image
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Camera Scanner View -->
+  <div id="modal-scanner" class="modal-overlay" onclick="closeScannerModal()">
+    <div class="modal-content glass-panel" style="max-width: 450px;" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeScannerModal()"><i class="fa-solid fa-xmark"></i></button>
+      <div class="modal-header">
+        <h3>Camera Scanner Active</h3>
+        <p style="font-size:12px; color:var(--text-secondary); margin-top:4px;">Align the library QR code inside the
+          frame</p>
+      </div>
+      <div class="scanner-camera-panel">
+        <div class="scanner-viewport-container">
+          <div id="scanner-view-camera-source"></div>
+          <div class="scanner-overlay-laser"></div>
+        </div>
+        <div class="scanner-controls">
+          <div class="file-scanner-box">
+            <i class="fa-solid fa-file-image"></i>
+            <p>Or upload an image file to decode</p>
+            <input type="file" id="scanner-file-input" accept="image/*" onchange="handleImageQRUpload(event)">
+          </div>
+          <div style="font-size: 11px; text-align: center; color: var(--text-muted);">
+            Ensure your webcam permissions are enabled.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Student ID Card Display -->
+  <div id="modal-idcard" class="modal-overlay" onclick="closeModal('modal-idcard')">
+    <div class="modal-content glass-panel" onclick="event.stopPropagation()" style="max-width: 420px; padding: 25px;">
+      <button class="modal-close" onclick="closeModal('modal-idcard')"><i class="fa-solid fa-xmark"></i></button>
+      <div class="modal-header" style="margin-bottom: 15px;">
+        <h3>Student ID Card</h3>
+      </div>
+      <div class="id-card-print-container"
+        style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+
+        <!-- Physical Pass Pass -->
+        <div id="id-card-layout" class="id-card-layout"
+          style="width: 100%; aspect-ratio: 1.586; background: #1e3a8a; border-radius: 12px; color: #ffffff; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.1);">
+          <!-- Top Navy Header Banner -->
+          <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 8px; margin-bottom: 8px;">
+            <div
+              style="font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-graduation-cap" style="color: #60a5fa;"></i> <span id="idcard-lib-name">LIBRARY
+                PASS</span>
+            </div>
+            <div style="font-size: 9px; font-weight: 500; color: #93c5fd; text-transform: uppercase;">MEMBERSHIP CARD
+            </div>
+          </div>
+          <!-- Body Details and QR -->
+          <div style="display: flex; gap: 15px; flex-grow: 1; align-items: center;">
+            <!-- Avatar Icon and Name Details -->
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+              <div id="idcard-student-name"
+                style="font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #ffffff;">
+                Student Name</div>
+              <div style="font-size: 11px; color: #93c5fd; font-family: monospace;">ID: <span id="idcard-student-id"
+                  style="color: #ffffff;">Lib2026CEN0001</span></div>
+              <div style="font-size: 11px; color: #cbd5e1;">Username: <span id="idcard-student-username"
+                  style="color: #ffffff; font-weight:600;">student123</span></div>
+              <div style="font-size: 10px; color: #cbd5e1; margin-top: 4px;">
+                <div><i class="fa-solid fa-mobile-screen-button" style="font-size:8px; margin-right:4px;"></i><span
+                    id="idcard-student-mobile">phone</span></div>
+                <div><i class="fa-solid fa-envelope" style="font-size:8px; margin-right:4px;"></i><span
+                    id="idcard-student-email">email</span></div>
+              </div>
+            </div>
+            <!-- QR code slot -->
+            <div
+              style="display: flex; flex-direction: column; align-items: center; background: #ffffff; padding: 6px; border-radius: 6px; width: 85px; height: 85px; justify-content: center; flex-shrink: 0;">
+              <div id="idcard-qr-holder"></div>
+            </div>
+          </div>
+          <!-- Footer tag -->
+          <div
+            style="font-size: 8px; text-align: center; color: #93c5fd; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 4px;">
+            Valid at all library branches. Non-transferable.
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer" style="margin-top: 20px;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-idcard')">Close</button>
+        <button type="button" class="btn btn-primary" onclick="downloadMemberIDCard()"
+          style="background: var(--color-secondary);">
+          <i class="fa-solid fa-download"></i> Download Card Image
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden container for Temp File Scanning -->
+  <div id="qr-file-scanner-temp" style="position: absolute; left: -9999px; top: -9999px; width: 200px; height: 200px;">
+  </div>
+
+
+
+  <!-- Toast Toast Container -->
+  <div class="toast-container" id="toast-root"></div>
+
+  <!-- Global Loading Overlay -->
+  <div id="global-loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner-container">
+      <div class="loading-spinner"></div>
+      <p id="global-loading-message">Processing request...</p>
+    </div>
+  </div>
+
+  <!-- Core Script Integrations -->
+  <script src="js/supabase-config.js"></script>
+  <script src="js/api-client.js"></script>
+  <script src="js/supabase-db.js"></script>
+  <script src="js/qr-handler.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

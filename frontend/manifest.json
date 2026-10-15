@@ -1,0 +1,28 @@
+{
+  "background_color": "#639add",
+  "description": "QR-code based smart library management system with Supabase and LocalStorage capability.",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Smart Library",
+  "orientation": "portrait",
+  "scope": "./",
+  "short_name": "Smart library",
+  "start_url": "index.html",
+  "theme_color": "#aabe85",
+  "lang": "en",
+  "categories": [
+    "education"
+  ],
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
